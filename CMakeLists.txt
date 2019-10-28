@@ -3,6 +3,7 @@ project(VINS_GPS)
 
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_STANDARD 14)
+
 include_directories(${CMAKE_SOURCE_DIR}/camera_model/include)
 include_directories(${CMAKE_SOURCE_DIR}/msgg)
 
@@ -17,7 +18,7 @@ include_directories(${CERES_INCLUDE_DIRS})
 include_directories(
         /usr/include/eigen3
 )
-find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
+#find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
 
 add_executable(VINS_GPS main.cpp
@@ -45,20 +46,9 @@ add_executable(VINS_GPS main.cpp
         feature_manager.h
         feature_tracker.h
 	Coosys.h
-        feature_tracker.cpp parameters.cpp parameters.h estimator.h estimator.cpp
-        camera_model/srcc/chessboard/Chessboard.cc
-        camera_model/srcc/calib/CameraCalibration.cc
-        camera_model/srcc/camera_models/Camera.cc
-        camera_model/srcc/camera_models/CameraFactory.cc
-        camera_model/srcc/camera_models/CostFunctionFactory.cc
-        camera_model/srcc/camera_models/PinholeCamera.cc
-        camera_model/srcc/camera_models/CataCamera.cc
-        camera_model/srcc/camera_models/EquidistantCamera.cc
-        camera_model/srcc/camera_models/ScaramuzzaCamera.cc
-        camera_model/srcc/sparse_graph/Transform.cc
-        camera_model/srcc/gpl/gpl.cc
-        camera_model/srcc/gpl/EigenQuaternionParameterization.cc )
+        feature_tracker.cpp parameters.cpp parameters.h estimator.h estimator.cpp )
 
 target_link_libraries(VINS_GPS
         ${OpenCV_LIBS}
-        ${CERES_LIBRARIES})
+        ${CERES_LIBRARIES}
+        ${CMAKE_SOURCE_DIR}/camera_model/build/libcamera_model.a)
