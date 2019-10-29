@@ -111,6 +111,8 @@ class Estimator
     vector<Vector3d> key_poses;
     double initial_timestamp;
 
+    double fir_gps[3]={0.0};
+
 
     double para_Pose[WINDOW_SIZE + 1][SIZE_POSE];
     double para_SpeedBias[WINDOW_SIZE + 1][SIZE_SPEEDBIAS];

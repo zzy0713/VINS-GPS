@@ -443,9 +443,9 @@ bool Estimator::visualInitialAlign()
                     double t2=gpsvec[j+1].time-Headers[i].stamp.toSec();
                     double w1=t2/(t1+t2);
                     double w2=t1/(t1+t2);
-                    pw[0]=w1*gpsvec[j].gpspos[0]+w2*gpsvec[j+1].gpspos[0];
-                    pw[1]=w1*gpsvec[j].gpspos[1]+w2*gpsvec[j+1].gpspos[1];
-                    pw[2]=w1*gpsvec[j].gpspos[2]+w2*gpsvec[j+1].gpspos[2];
+                    pw[0]=(w1*gpsvec[j].gpspos[0]+w2*gpsvec[j+1].gpspos[0])-fir_gps[0];
+                    pw[1]=(w1*gpsvec[j].gpspos[1]+w2*gpsvec[j+1].gpspos[1])-fir_gps[1];
+                    pw[2]=(w1*gpsvec[j].gpspos[2]+w2*gpsvec[j+1].gpspos[2])-fir_gps[2];
                 }
                 else
                 {
@@ -453,9 +453,9 @@ bool Estimator::visualInitialAlign()
                     double t2=gpsvec[j].time-Headers[i].stamp.toSec();
                     double w1=t2/(t1+t2);
                     double w2=t1/(t1+t2);
-                    pw[0]=w1*gpsvec[j-1].gpspos[0]+w2*gpsvec[j].gpspos[0];
-                    pw[1]=w1*gpsvec[j-1].gpspos[1]+w2*gpsvec[j].gpspos[1];
-                    pw[2]=w1*gpsvec[j-1].gpspos[2]+w2*gpsvec[j].gpspos[2];
+                    pw[0]=(w1*gpsvec[j-1].gpspos[0]+w2*gpsvec[j].gpspos[0])-fir_gps[0];
+                    pw[1]=(w1*gpsvec[j-1].gpspos[1]+w2*gpsvec[j].gpspos[1])-fir_gps[1];
+                    pw[2]=(w1*gpsvec[j-1].gpspos[2]+w2*gpsvec[j].gpspos[2])-fir_gps[2];
                 }
 
                 pws.push_back(pw);
@@ -784,9 +784,9 @@ void Estimator::optimization()
                     double t2=gpsvec[j+1].time-Headers[i].stamp.toSec();
                     double w1=t2/(t1+t2);
                     double w2=t1/(t1+t2);
-                    gpsdd.gpspos[0]=w1*gpsvec[j].gpspos[0]+w2*gpsvec[j+1].gpspos[0];
-                    gpsdd.gpspos[1]=w1*gpsvec[j].gpspos[1]+w2*gpsvec[j+1].gpspos[1];
-                    gpsdd.gpspos[2]=w1*gpsvec[j].gpspos[2]+w2*gpsvec[j+1].gpspos[2];
+                    gpsdd.gpspos[0]=w1*gpsvec[j].gpspos[0]+w2*gpsvec[j+1].gpspos[0]-fir_gps[0];
+                    gpsdd.gpspos[1]=w1*gpsvec[j].gpspos[1]+w2*gpsvec[j+1].gpspos[1]-fir_gps[1];
+                    gpsdd.gpspos[2]=w1*gpsvec[j].gpspos[2]+w2*gpsvec[j+1].gpspos[2]-fir_gps[2];
                     gpsdd.gpscov[0]=gpsvec[j].gpscov[0];
                     gpsdd.gpscov[1]=gpsvec[j].gpscov[1];
                     gpsdd.gpscov[2]=gpsvec[j].gpscov[2];
@@ -797,9 +797,9 @@ void Estimator::optimization()
                     double t2=gpsvec[j].time-Headers[i].stamp.toSec();
                     double w1=t2/(t1+t2);
                     double w2=t1/(t1+t2);
-                    gpsdd.gpspos[0]=w1*gpsvec[j-1].gpspos[0]+w2*gpsvec[j].gpspos[0];
-                    gpsdd.gpspos[1]=w1*gpsvec[j-1].gpspos[1]+w2*gpsvec[j].gpspos[1];
-                    gpsdd.gpspos[2]=w1*gpsvec[j-1].gpspos[2]+w2*gpsvec[j].gpspos[2];
+                    gpsdd.gpspos[0]=w1*gpsvec[j-1].gpspos[0]+w2*gpsvec[j].gpspos[0]-fir_gps[0];
+                    gpsdd.gpspos[1]=w1*gpsvec[j-1].gpspos[1]+w2*gpsvec[j].gpspos[1]-fir_gps[1];
+                    gpsdd.gpspos[2]=w1*gpsvec[j-1].gpspos[2]+w2*gpsvec[j].gpspos[2]-fir_gps[2];
                     gpsdd.gpscov[0]=gpsvec[j].gpscov[0];
                     gpsdd.gpscov[1]=gpsvec[j].gpscov[1];
                     gpsdd.gpscov[2]=gpsvec[j].gpscov[2];

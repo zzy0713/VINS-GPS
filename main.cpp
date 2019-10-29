@@ -85,9 +85,9 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         foutC.precision(6);
         foutC << header.stamp.toSec()<< " ";
         foutC.precision(5);
-        foutC << estimator.Ps[WINDOW_SIZE].x() << " "
-              << estimator.Ps[WINDOW_SIZE].y() << " "
-              << estimator.Ps[WINDOW_SIZE].z() << " "
+        foutC << estimator.Ps[WINDOW_SIZE].x() +estimator.fir_gps[0]<< " "
+              << estimator.Ps[WINDOW_SIZE].y() +estimator.fir_gps[1]<< " "
+              << estimator.Ps[WINDOW_SIZE].z() +estimator.fir_gps[2]<< " "
               << tmp_Q.w() << " "
               << tmp_Q.x() << " "
               << tmp_Q.y() << " "
@@ -639,6 +639,10 @@ int main(int argc, char **argv)
 
    LoadGPS(vTimeStamps[0]);
    cout<<"************************"<<estimator.gpsvec.size()<<endl;
+
+    estimator.fir_gps[0]=estimator.gpsvec[0].gpspos[0];
+    estimator.fir_gps[1]=estimator.gpsvec[0].gpspos[1];
+    estimator.fir_gps[2]=estimator.gpsvec[0].gpspos[2];
 
 
 
