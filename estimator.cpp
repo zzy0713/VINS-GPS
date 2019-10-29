@@ -510,7 +510,7 @@ bool Estimator::visualInitialAlign()
     for (int i = 0; i <= frame_count; i++)
     {
         Rs[i] = RWC * Rs[i];
-        Vs[i] = RWC * Vs[i];
+        Vs[i] = SWC*(RWC * Vs[i]);
         Ps[i] = SWC*(RWC*Ps[i])+TWC-Rs[i]*LBGNSS;
     }
 
