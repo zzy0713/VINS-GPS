@@ -73,15 +73,11 @@ public:
         residuals[0]=residual[0]*T(1.0/gpsdata.gpscov[0]);
         residuals[1]=residual[1]*T(1.0/gpsdata.gpscov[1]);
         residuals[2]=residual[2]*T(1.0/gpsdata.gpscov[2]);
-        residuals[3]=T(0.0);
-        residuals[4]=T(0.0);
-        residuals[5]=T(0.0);
-        residuals[6]=T(0.0);
         return true;
     }
 
     static ceres::CostFunction* Create(const gps_struct gps_data){
-        return (new ceres::AutoDiffCostFunction<GPSCost,7,7>(
+        return (new ceres::AutoDiffCostFunction<GPSCost,3,7>(
                 new GPSCost(gps_data)));
     }
 
