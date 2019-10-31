@@ -669,12 +669,12 @@ bool Estimator::failureDetection()
         printf(" little feature %d\n", f_manager.last_track_num);
         //return true;
     }
-    if (Bas[WINDOW_SIZE].norm() > 5)
+    if (Bas[WINDOW_SIZE].norm() > 3)
     {
         printf(" big IMU acc bias estimation %f\n", Bas[WINDOW_SIZE].norm());
         return true;
     }
-    if (Bgs[WINDOW_SIZE].norm() > 2)
+    if (Bgs[WINDOW_SIZE].norm() > 1)
     {
         printf(" big IMU gyr bias estimation %f\n", Bgs[WINDOW_SIZE].norm());
         return true;
@@ -805,8 +805,11 @@ void Estimator::optimization()
                     gpsdd.gpscov[2]=gpsvec[j].gpscov[2];
                 }
                 
-                ceres::CostFunction* gpscost_function=GPSCost::Create(gpsdd);
-                problem.AddResidualBlock(gpscost_function,NULL,para_Pose[i]);
+                // ceres::CostFunction* gpscost_function=GPSCost::Create(gpsdd);
+                // problem.AddResidualBlock(gpscost_function,NULL,para_Pose[i]);
+
+                GPSFactor* gpsfactor=new GPSFactor(gpsdd);
+                problem.AddResidualBlock(gpsfactor,NULL,para_Pose[i]);
                 kk++;
                 break;
             }
