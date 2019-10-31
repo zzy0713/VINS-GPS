@@ -26,6 +26,7 @@ public:
         T s=par[7];
         Matrix<T, 3, 1> tt(par[4],par[5],par[6]);
         Quaternion<T> qq(par[0],par[1],par[2],par[3]);
+        qq.normalize();
         Matrix<T, 3, 3> R=qq.toRotationMatrix();
         Matrix<T, 3, 1> pre=pww-(s*(R*pcc)+tt);
         residuals[0] = pre[0];
@@ -67,6 +68,7 @@ inline int getRTWC(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Mat
     ceres::Solve(options, &problem, &summary);
 
     Quaterniond q(par[0],par[1],par[2],par[3]);
+    q.normalize();
     RWC=q.toRotationMatrix();
     TWC[0]=par[4];
     TWC[1]=par[5];
@@ -85,7 +87,7 @@ inline int getRTWC(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Mat
         sum+=dd;
     }
 
-    if(sum/num > 0.2)
+    if(sum/num > 0.01)
         return 0;
 
     return 1;
