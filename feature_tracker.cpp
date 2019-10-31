@@ -82,6 +82,14 @@ void FeatureTracker::addPoints()
     }
 }
 
+double distance(cv::Point2f &pt1, cv::Point2f &pt2)
+{
+    //printf("pt1: %f %f pt2: %f %f\n", pt1.x, pt1.y, pt2.x, pt2.y);
+    double dx = pt1.x - pt2.x;
+    double dy = pt1.y - pt2.y;
+    return sqrt(dx * dx + dy * dy);
+}
+
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)//读取图像，提取特征
 {
     cv::Mat img;
@@ -114,7 +122,41 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)//读取图
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
-        cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+
+        /*单向光流*/
+        // cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+
+
+        /**********************************双向光流*******************************************/
+        
+        cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 1);
+
+        
+        int succ_num = 0;
+        for (size_t i = 0; i < status.size(); i++)
+        {
+            if (status[i])
+                succ_num++;
+        }
+        if (succ_num < 10)
+            cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+
+        vector<uchar> reverse_status;
+        vector<cv::Point2f> reverse_pts = cur_pts;
+        cv::calcOpticalFlowPyrLK(forw_img, cur_img, forw_pts, reverse_pts, reverse_status, err, cv::Size(21, 21), 1, 
+        cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
+
+        for(size_t i = 0; i < status.size(); i++)
+        {
+            if(status[i] && reverse_status[i] && distance(cur_pts[i], reverse_pts[i]) <= 0.5)
+            {
+                status[i] = 1;
+            }
+            else
+                status[i] = 0;
+        }
+
+        /**********************************双向光流*******************************************/
 
         for (int i = 0; i < int(forw_pts.size()); i++)
             if (status[i] && !inBorder(forw_pts[i]))
