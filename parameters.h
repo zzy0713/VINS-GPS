@@ -18,7 +18,7 @@
 using namespace std;
 
 extern double FOCAL_LENGTH;
-const int WINDOW_SIZE = 12;
+const int WINDOW_SIZE = 11;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 
