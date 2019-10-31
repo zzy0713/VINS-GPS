@@ -18,30 +18,31 @@ struct gps_struct
     double time;
 };
 
-class GPSFactor : public ceres::SizedCostFunction< 7 , 7 >
+class GPSFactor : public ceres::SizedCostFunction< 3 , 7 >
 {
   public:
     GPSFactor()=delete;
     GPSFactor(gps_struct _gpsdata):gpsdata(_gpsdata){}
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
     {
-        Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
-        Eigen::Vector3d gps(gpsdata.gpspos[0],gpsdata.gpspos[1],gpsdata.gpspos[2]);
-        Eigen::Matrix<double, 7, 7> gpscovariance;
+        Eigen::Vector3d Pimu(parameters[0][0], parameters[0][1], parameters[0][2]);
+        Eigen::Quaterniond Qimu(parameters[0][6], parameters[0][3], parameters[0][4],parameters[0][5]);
+        Eigen::Vector3d Pgps(gpsdata.gpspos[0],gpsdata.gpspos[1],gpsdata.gpspos[2]);
+        Eigen::Matrix<double, 3, 3> gpscovariance;
         gpscovariance.setZero();
         gpscovariance(0,0)=gpsdata.gpscov[0]*gpsdata.gpscov[0];gpscovariance(1,1)=gpsdata.gpscov[1]*gpsdata.gpscov[1];gpscovariance(2,2)=gpsdata.gpscov[2]*gpsdata.gpscov[2];
-        gpscovariance(3,3)=1;gpscovariance(4,4)=1;gpscovariance(5,5)=1;gpscovariance(6,6)=1;
-        Eigen::Map<Eigen::Matrix<double, 7, 1>> residual(residuals);
-        residual.setZero();
-        residual.block<3, 1>(0, 0)=Pi-gps;
-        Eigen::Matrix<double, 7, 7> sqrt_info = Eigen::LLT<Eigen::Matrix<double, 7, 7>>(gpscovariance.inverse()).matrixL().transpose();
+        Eigen::Map<Eigen::Matrix<double, 3, 1>> residual(residuals);
+        Eigen::Vector3d Lbgnss(GPS_L0,GPS_L1,GPS_L2);
+        residual=Pgps-Qimu*Lbgnss-Pimu;
+        Eigen::Matrix<double, 3, 3> sqrt_info = Eigen::LLT<Eigen::Matrix<double, 3, 3>>(gpscovariance.inverse()).matrixL().transpose();
         residual = sqrt_info * residual;
         // cout<<sqrt_info<<endl;
         if(jacobians)
         {
-            Eigen::Map<Eigen::Matrix<double, 7, 7, Eigen::RowMajor>> jacobian(jacobians[0]);
+            Eigen::Map<Eigen::Matrix<double, 3, 7, Eigen::RowMajor>> jacobian(jacobians[0]);
             jacobian.setZero();
-            jacobian.block<3, 3>(0, 0)=Eigen::Matrix3d::Identity();
+            jacobian.block<3, 3>(0, 0)=-1.0*Eigen::Matrix3d::Identity();
+            jacobian.block<3, 3>(0, 3)=-1.0*Utility::skewSymmetric(Qimu*Lbgnss);
             jacobian = sqrt_info * jacobian;
         }
 
@@ -68,11 +69,13 @@ public:
         Lbgnss[0]=T(GPS_L0);
         Lbgnss[1]=T(GPS_L1);
         Lbgnss[2]=T(GPS_L2);
+
         Matrix<T,3,1> residual=Pgps-Qimu*Lbgnss-Pimu;
 
         residuals[0]=residual[0]*T(1.0/gpsdata.gpscov[0]);
         residuals[1]=residual[1]*T(1.0/gpsdata.gpscov[1]);
         residuals[2]=residual[2]*T(1.0/gpsdata.gpscov[2]);
+        
         return true;
     }
 
