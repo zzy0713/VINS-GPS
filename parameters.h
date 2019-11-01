@@ -22,7 +22,16 @@ const int WINDOW_SIZE = 11;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 
+// GPS
 extern int GPS_HZ;
+extern int is_out;
+extern double out_start;
+extern double out_end;
+extern double GPS_L0;
+extern double GPS_L1;
+extern double GPS_L2;
+
+
 //#define UNIT_SPHERE_ERROR
 
 extern double INIT_DEPTH;
@@ -35,9 +44,7 @@ extern double GYR_N, GYR_W;
 extern std::vector<Eigen::Matrix3d> RIC;
 extern std::vector<Eigen::Vector3d> TIC;
 extern Eigen::Vector3d G;
-extern double GPS_L0;
-extern double GPS_L1;
-extern double GPS_L2;
+
 
 extern double BIAS_ACC_THRESHOLD;
 extern double BIAS_GYR_THRESHOLD;

@@ -763,6 +763,8 @@ void Estimator::optimization()
         {
             if(abs(Headers[i].stamp.toSec()-gpsvec[j].time)<0.05)
             {
+                if(is_out&&gpsvec[j].time>out_start&&gpsvec[j].time<out_end)
+                    continue;
                 gps_struct gpsdd;
                 if(Headers[i].stamp.toSec()>gpsvec[j].time)
                 {
@@ -879,6 +881,7 @@ void Estimator::optimization()
     printf("solver costs: %f\n", t_solver.toc());
 
     double2vector();
+
     
     printf("whole time for ceres: %f\n", t_whole.toc());
 }

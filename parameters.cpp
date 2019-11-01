@@ -10,7 +10,13 @@ std::string IMAGE_data;
 std::string GPS_file;
 std::vector<std::string> CAM_NAMES;
 std::string FISHEYE_MASK;
+//GPS
 int GPS_HZ;
+int is_out;
+double out_start;
+double out_end;
+double GPS_L0,GPS_L1,GPS_L2;
+
 int MAX_CNT;
 int MIN_DIST;
 int FREQ;
@@ -32,7 +38,6 @@ std::vector<Eigen::Vector3d> TIC;
 
 Eigen::Vector3d G{0.0, 0.0, 9.8};
 
-double GPS_L0,GPS_L1,GPS_L2;
 
 double BIAS_ACC_THRESHOLD;
 double BIAS_GYR_THRESHOLD;
@@ -59,6 +64,17 @@ void readParameters(std::string configfile)
     GPS_L0=fsSettings["gps_l0"];
     GPS_L1=fsSettings["gps_l1"];
     GPS_L2=fsSettings["gps_l2"];
+    is_out=fsSettings["is_out"];
+    out_start=fsSettings["out_start"];
+    out_end=fsSettings["out_end"];
+    if(is_out)
+    {
+        printf("*****GPS-OUT******start：%.3f******end：%.3f \n",out_start,out_end);
+    }
+    else
+    {
+        printf("+++++++++++++++NO--GPS--OUT+++++++++++++++ \n");
+    }
 
     fsSettings["image_file"] >> IMAGE_file;
     fsSettings["imu_file"] >> IMU_file;
@@ -93,7 +109,7 @@ void readParameters(std::string configfile)
 
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
-    VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
+    VINS_RESULT_PATH = OUTPUT_PATH + "vins_result_no_loop.csv";
     std::cout << "result path " << VINS_RESULT_PATH << std::endl;
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
     fout.close();
