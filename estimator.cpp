@@ -756,20 +756,6 @@ void Estimator::optimization()
     int kk=0;
 /*****************************************************GPS**********************************************************************/
 
-    // for(int i = 0; i < (WINDOW_SIZE + 1); i++)
-    // {
-    //     for(int j=0;j<gpsvec.size();j+=GPS_HZ)
-    //     {
-    //         if(abs(Headers[i].stamp.toSec()-gpsvec[j].time)<0.05)
-    //         {
-    //             GPSFactor* gpsfactor=new GPSFactor(gpsvec[j]);
-    //             problem.AddResidualBlock(gpsfactor,NULL,para_Pose[i]);
-    //             kk++;
-    //             break;
-    //         }
-    //     }
-    // }
-    // cout<<"**************************************GPS数量"<<kk<<endl;
 
     for(int i = 0; i < (WINDOW_SIZE + 1); i++)
     {
