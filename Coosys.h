@@ -9,6 +9,42 @@
 using namespace std;
 using namespace Eigen;
 
+
+
+class myPoseLocalParameterization : public ceres::LocalParameterization
+{
+    virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const
+    {
+        Eigen::Map<const Eigen::Vector3d> _p(x+1);
+        Eigen::Map<const Eigen::Quaterniond> _q(x+4);
+        
+        Eigen::Map<const Eigen::Vector3d> dp(delta+1);
+
+        Eigen::Quaterniond dq = Utility::deltaQ(Eigen::Map<const Eigen::Vector3d>(delta + 4));
+
+        Eigen::Map<Eigen::Vector3d> p(x_plus_delta + 1);
+        Eigen::Map<Eigen::Quaterniond> q(x_plus_delta + 4);
+
+        x_plus_delta[0]=x[0]+delta[0];
+        p = _p + dp;
+        q = (_q * dq).normalized();
+
+        return true;
+    };
+    virtual bool ComputeJacobian(const double *x, double *jacobian) const
+    {
+        Eigen::Map<Eigen::Matrix<double, 8, 7, Eigen::RowMajor>> j(jacobian);
+
+        j.topRows<7>().setIdentity();
+        j.bottomRows<1>().setZero();
+
+        return true;
+    };
+    virtual int GlobalSize() const { return 8; };
+    virtual int LocalSize() const { return 7; };
+};
+
+
 class MyScalarCostFunctor {
 
 public:
@@ -23,12 +59,10 @@ public:
         pcc[0]=T(pc_[0]);
         pcc[1]=T(pc_[1]);
         pcc[2]=T(pc_[2]);
-        T s=par[7];
-        Matrix<T, 3, 1> tt(par[4],par[5],par[6]);
-        Quaternion<T> qq(par[0],par[1],par[2],par[3]);
-        qq.normalize();
-        Matrix<T, 3, 3> R=qq.toRotationMatrix();
-        Matrix<T, 3, 1> pre=pww-(s*(R*pcc)+tt);
+        T s=par[0];
+        Matrix<T, 3, 1> tt(par[1],par[2],par[3]);
+        Quaternion<T> qq(par[7],par[4],par[5],par[6]);
+        Matrix<T, 3, 1> pre=pww-(s*(qq*pcc)+tt);
         residuals[0] = pre[0];
         residuals[1] = pre[1];
         residuals[2] = pre[2];
@@ -51,6 +85,9 @@ inline int getRTWC(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Mat
     double par[8]={1,0,0,0,0,0,0,1};
     ceres::Problem problem;
     ceres::LossFunction* loss_function = new ceres::HuberLoss(1.0);
+    
+    ceres::LocalParameterization *local_parameterization = new myPoseLocalParameterization();
+    problem.AddParameterBlock(par, 8, local_parameterization);
 
     for(size_t i=0;i<pws.size();i++)
     {
@@ -61,19 +98,19 @@ inline int getRTWC(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Mat
     ceres::Solver::Options options;
 
     options.linear_solver_type = ceres::DENSE_SCHUR;
-    options.num_threads = 2;
+    options.num_threads = 8;
     options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
     options.max_num_iterations=100;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 
-    Quaterniond q(par[0],par[1],par[2],par[3]);
-    q.normalize();
+    Quaterniond q(par[7],par[4],par[5],par[6]);
+    
     RWC=q.toRotationMatrix();
-    TWC[0]=par[4];
-    TWC[1]=par[5];
-    TWC[2]=par[6];
-    SWC=par[7];
+    TWC[0]=par[1];
+    TWC[1]=par[2];
+    TWC[2]=par[3];
+    SWC=par[0];
     
     double sum=0;
     int num=pws.size();
@@ -87,99 +124,12 @@ inline int getRTWC(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Mat
         sum+=dd;
     }
 
-    if(sum/num > 0.01)
+    if(sum/num > 0.05)
         return 0;
 
     return 1;
 }
 
-
-// class MyScalarCostFunctor2 {
-
-// public:
-//     MyScalarCostFunctor2(Vector3d pw,Vector3d pc): pw_(pw), pc_(pc) {}
-//     template <typename T>
-//     bool operator()(const T* const par , T* residuals) const {
-
-//         Matrix<T, 2, 1>  pww,pcc;
-//         pww[0]=T(pw_[0]);
-//         pww[1]=T(pw_[1]);
-//         pcc[0]=T(pc_[0]);
-//         pcc[1]=T(pc_[1]);
-//         T s=par[0],yaw=par[1];
-//         Matrix<T, 2, 1> tt(par[2],par[3]);
-//         Matrix<T, 2, 2> R;
-//         R<< cos(yaw),-sin(yaw),
-//             sin(yaw), cos(yaw); 
-//         Matrix<T, 2, 1> pre=pww-(s*(R*pcc+tt));
-//         residuals[0] = pre[0];
-//         residuals[1] = pre[1];
-//         return true;
-//     }
-
-//     static ceres::CostFunction* Create(const Vector3d pww, const Vector3d pcc){
-//         return (new ceres::AutoDiffCostFunction<MyScalarCostFunctor,3,8>(
-//                 new MyScalarCostFunctor(pww,pcc)));
-//     }
-
-// private:
-//     Vector3d pw_;
-//     Vector3d pc_;
-// };
-
-
-// inline int getRTWC2(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Matrix3d &RWC , Vector3d &TWC ,double &SWC ) {
-
-//     double par[4]={1,0,0,0};
-//     ceres::Problem problem;
-//     ceres::LossFunction* loss_function = new ceres::HuberLoss(1.0);
-
-//     for(size_t i=0;i<pws.size();i++)
-//     {
-//         ceres::CostFunction* cost_function=MyScalarCostFunctor2::Create(pws[i],pcs[i]);
-//         problem.AddResidualBlock(cost_function, loss_function, par);
-//     }
-
-//     ceres::Solver::Options options;
-
-//     options.linear_solver_type = ceres::DENSE_SCHUR;
-//     options.num_threads = 2;
-//     options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
-//     options.max_num_iterations=100;
-//     ceres::Solver::Summary summary;
-//     ceres::Solve(options, &problem, &summary);
-//     RWC<< cos(par[1]),-sin(par[1]),0.0,
-//           sin(par[1]), cos(par[1]),0.0,
-//           0.0        , 0.0        ,1.0;
-    
-//     TWC[0]=par[2];
-//     TWC[1]=par[3];
-//     TWC[2]=0.0;
-//     SWC=par[0];
-
-//     cout<<par[0]<<" "<< par[1]<<" "<<par[2]<<" "<<par[3]<<endl;
-
-    
-//     double sum=0;
-//     int num=pws.size();
-
-//     for(size_t i=0;i<pws.size();i++)
-//     {
-//         Vector3d pww=SWC*(RWC*pcs[i]+TWC);
-//         cout<<"pcs********"<<pcs[i].transpose()<<endl;
-//         cout<<"pww********"<<pww.transpose()<<endl;
-//         cout<<"pws********"<<pws[i].transpose()<<endl;
-//         Vector3d dis=pws[i]-pww;
-//         cout<<"********"<<dis.transpose()<<endl;
-//         double dd=sqrt(dis[0]*dis[0]+dis[1]*dis[1]);
-//         sum+=dd;
-//     }
-
-//     if(sum/num > 1)
-//         return 0;
-
-//     return 1;
-// }
 
 
 inline int getRTWC2(const vector<Vector3d> &pws, const vector<Vector3d> &pcs, Matrix3d &RWC , Vector3d &TWC ,double &SWC ) 
