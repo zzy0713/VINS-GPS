@@ -23,8 +23,7 @@
 #include "msgg/Odometry.h"
 using namespace std;
 
-vector<uchar> r_status;
-vector<float> r_err;
+
 FeatureTracker trackerData[NUM_OF_CAM];
 double first_image_time;
 int pub_count = 1;
@@ -43,15 +42,6 @@ queue<int> optimize_posegraph_buf;
 
 int sum_of_wait = 0;
 
-std::mutex m_buf;
-std::mutex m_state;
-std::mutex i_buf;
-std::mutex m_loop_drift;
-std::mutex m_keyframedatabase_resample;
-std::mutex m_update_visualization;
-std::mutex m_keyframe_buf;
-std::mutex m_retrive_data_buf;
-
 double latest_time;
 Eigen::Vector3d tmp_P;
 Eigen::Quaterniond tmp_Q;
@@ -60,6 +50,8 @@ Eigen::Vector3d tmp_Ba;
 Eigen::Vector3d tmp_Bg;
 Eigen::Vector3d acc_0;
 Eigen::Vector3d gyr_0;
+
+
 
 queue<pair<cv::Mat, double>> image_buf;
 
@@ -78,23 +70,29 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
 {
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
-
+        Eigen::Quaterniond PUB_Q(estimator.Rs[WINDOW_SIZE]);
         // write result to file
         ofstream foutC(VINS_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(6);
         foutC << header.stamp.toSec()<< " ";
         foutC.precision(5);
-        foutC << estimator.Ps[WINDOW_SIZE].x() +estimator.fir_gps[0]<< " "
-              << estimator.Ps[WINDOW_SIZE].y() +estimator.fir_gps[1]<< " "
-              << estimator.Ps[WINDOW_SIZE].z() +estimator.fir_gps[2]<< " "
-              << tmp_Q.w() << " "
-              << tmp_Q.x() << " "
-              << tmp_Q.y() << " "
-              << tmp_Q.z() << " "
+        foutC << estimator.Ps[WINDOW_SIZE].x() + estimator.fir_gps[0]<< " "
+              << estimator.Ps[WINDOW_SIZE].y() + estimator.fir_gps[1]<< " "
+              << estimator.Ps[WINDOW_SIZE].z() + estimator.fir_gps[2]<< " "
+              << PUB_Q.w() << " "
+              << PUB_Q.x() << " "
+              << PUB_Q.y() << " "
+              << PUB_Q.z() << " "
               << estimator.Vs[WINDOW_SIZE].x() << " "
               << estimator.Vs[WINDOW_SIZE].y() << " "
-              << estimator.Vs[WINDOW_SIZE].z() << endl;
+              << estimator.Vs[WINDOW_SIZE].z() << " "
+              << estimator.Bgs[WINDOW_SIZE].x() << " "
+              << estimator.Bgs[WINDOW_SIZE].y() << " "
+              << estimator.Bgs[WINDOW_SIZE].z() << " "
+              << estimator.Bas[WINDOW_SIZE].x() << " "
+              << estimator.Bas[WINDOW_SIZE].y() << " "
+              << estimator.Bas[WINDOW_SIZE].z() <<endl;
         foutC.close();
     }
 }
@@ -139,20 +137,6 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     acc_0 = linear_acceleration;
     gyr_0 = angular_velocity;
 
-//    Eigen::Vector3d un_acc_0 = tmp_Q * (acc_0 - tmp_Ba - tmp_Q.inverse() * estimator.g);
-//
-//    Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - tmp_Bg;
-//    tmp_Q = tmp_Q * Utility::deltaQ(un_gyr * dt);
-//
-//    Eigen::Vector3d un_acc_1 = tmp_Q * (linear_acceleration - tmp_Ba - tmp_Q.inverse() * estimator.g);
-//
-//    Eigen::Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
-//
-//    tmp_P = tmp_P + dt * tmp_V + 0.5 * dt * dt * un_acc;
-//    tmp_V = tmp_V + dt * un_acc;
-//
-//    acc_0 = linear_acceleration;
-//    gyr_0 = angular_velocity;
 }
 
 void update()
@@ -161,8 +145,6 @@ void update()
     latest_time = current_time;
     tmp_P = estimator.Ps[WINDOW_SIZE];
     tmp_Q = estimator.Rs[WINDOW_SIZE];
-//    tmp_P = relocalize_r * estimator.Ps[WINDOW_SIZE] + relocalize_t;
-//    tmp_Q = relocalize_r * estimator.Rs[WINDOW_SIZE];
     tmp_V = estimator.Vs[WINDOW_SIZE];
     tmp_Ba = estimator.Bas[WINDOW_SIZE];
     tmp_Bg = estimator.Bgs[WINDOW_SIZE];
@@ -208,7 +190,7 @@ vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudC
             imu_buf.pop();
         }
         IMUs.emplace_back(imu_buf.front());
-// ROS_INFO_STREAM("IMUs end data timestamp: " << IMUs.back()->header.stamp << "IMUs size: "<< IMUs.size() << "img_msg timestamp" << img_msg->header.stamp );
+
         measurements.emplace_back(IMUs, img_msg);
     }
     return measurements;
@@ -216,12 +198,10 @@ vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudC
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
-//    m_buf.lock();
+
     imu_buf.push(imu_msg);
-//    m_buf.unlock();
-//    con.notify_one();
+
     {
-//        std::lock_guard<std::mutex> lg(m_state);
         predict(imu_msg);
     }
 
@@ -229,7 +209,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
-//    m_buf.lock();
+
     if (!init_feature)
     {
         //skip the first detected feature, which doesn't contain optical flow speed
@@ -238,9 +218,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
         return;
     }
     feature_buf.push(feature_msg);
-    //ROS_INFO("----------feature timestamp %f------------",feature_msg->header.stamp.toSec());
-//    m_buf.unlock();
-//    con.notify_one();
+
 }
 
 void send_imu(const sensor_msgs::ImuConstPtr &imu_msg)
@@ -261,24 +239,16 @@ void send_imu(const sensor_msgs::ImuConstPtr &imu_msg)
     double rx = imu_msg->angular_velocity.x - bg[0];
     double ry = imu_msg->angular_velocity.y - bg[1];
     double rz = imu_msg->angular_velocity.z - bg[2];
-    //ROS_DEBUG("IMU %f, dt: %f, acc: %f %f %f, gyr: %f %f %f", t, dt, dx, dy, dz, rx, ry, rz);
+
 
     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
 }
 
-// thread: visual-inertial odometry
+
 void process()
 {
-//    while (true)
-//    {
+
         std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
-//        std::unique_lock<std::mutex> lk(m_buf);
-//        con.wait(lk, [&]
-//        {
-//            return (measurements = getMeasurements()).size() != 0;
-//        });
-////        cout<<"************************************************************"<<endl;
-//        lk.unlock();
 
         measurements = getMeasurements();
 
@@ -306,7 +276,6 @@ void process()
                     ry = imu_msg->angular_velocity.y;
                     rz = imu_msg->angular_velocity.z;
                     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
 
                 }
                 else
@@ -326,10 +295,9 @@ void process()
                     ry = w1 * ry + w2 * imu_msg->angular_velocity.y;
                     rz = w1 * rz + w2 * imu_msg->angular_velocity.z;
                     estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
+
                 }
             }
-//                send_imu(imu_msg);
 
 
             printf("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
@@ -358,15 +326,11 @@ void process()
             std_msgs::Header header = img_msg->header;
             header.frame_id = "world";
             pubOdometry(estimator, header);
-//            m_loop_drift.lock();
         }
-//        m_buf.lock();
-//        m_state.lock();
+
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
             update();
-//        m_state.unlock();
-//        m_buf.unlock();
-//    }
+
 }
 
 
@@ -381,8 +345,7 @@ void LoadImages(const string &strImagePath, const string &strTimesStampsPath,
     {
         string s;
         getline(fTimes,s);
-        // cout<<s<<endl;
-        // cout<<s.substr(0, s.length() - 4)<<endl;
+
         if(!s.empty())
         {
             stringstream ss;
@@ -402,7 +365,6 @@ void img_callback(const cv::Mat &show_img,const ros::Time &timestamp)
     {
         first_image_flag = false;
         first_image_time = timestamp.toSec();
-//        last_image_time = timestamp.toSec();//上一个照片时间
         return;
     }
     // frequency control  图像特征点输出频率的控制(图像发送频率为10hz)
@@ -643,14 +605,7 @@ int main(int argc, char **argv)
     estimator.fir_gps[0]=estimator.gpsvec[0].gpspos[0];
     estimator.fir_gps[1]=estimator.gpsvec[0].gpspos[1];
     estimator.fir_gps[2]=estimator.gpsvec[0].gpspos[2];
-
-
-
-
-//    std::thread measurement_process{process};
-//
-//    measurement_process.detach();
-
+    
     for(ni=0; ni<imageNum; ni++)
     {
 
